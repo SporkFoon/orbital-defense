@@ -1,180 +1,258 @@
 @startuml "Orbital Defense Class Diagram"
 
-abstract class GameObject {
-  +Vector2 position
-  +update()
-  +render()
+package "Game Core" {
+  abstract class GameObject {
+    +Vector2 position
+    +update()
+    +render(surface)
+  }
+
+  class Planet {
+    -int health
+    -int resources
+    -int shield_level
+    -int radius
+    -Surface image
+    +take_damage(amount)
+    +add_resources(amount)
+    +upgrade_shield()
+    +check_game_over()
+  }
+
+  abstract class Defense {
+    -float orbital_radius
+    -int cost
+    -int damage
+    -float fire_rate
+    -int upgrade_level
+    -float angle
+    -int size
+    -int shots_fired
+    -int shots_hit
+    -int total_damage_dealt
+    +fire(current_time, enemies)
+    #_fire_at_target(target)
+    +upgrade()
+    +calculate_aim(target)
+    +detect_enemies(enemies)
+  }
+
+  abstract class Enemy {
+    -int health
+    -float speed
+    -int damage
+    -int reward
+    -string movement_pattern
+    -int radius
+    -bool destroyed
+    -int spawn_time
+    -float closest_approach
+    +move(planet_pos)
+    +attack(planet)
+    +take_damage(amount)
+    +check_destroyed()
+  }
+
+  class Projectile {
+    -list position
+    -float angle
+    -int damage
+    -float speed
+    -tuple color
+    -bool destroyed
+    -int radius
+    +update()
+    +check_collision(enemies)
+  }
 }
 
-class Planet {
-  -int health
-  -int resources
-  -int shield_level
-  -Vector2 position
-  +take_damage(amount)
-  +add_resources(amount)
-  +upgrade_shield()
-  +check_game_over()
+package "Defense Types" {
+  class LaserTurret {
+    -float range
+    -float rotation_speed
+    -float charge_time
+    -tuple color
+    #_fire_at_target(target)
+    +charge_laser()
+  }
+
+  class ResourceCollector {
+    -float collection_rate
+    -int storage_capacity
+    -int current_storage
+    -tuple color
+    +collect_resources(dt)
+    +transfer_resources()
+    +upgrade_capacity()
+  }
 }
 
-abstract class Defense {
-  -float orbital_radius
-  -int cost
-  -int damage
-  -float fire_rate
-  -int upgrade_level
-  +fire()
-  +upgrade()
-  +calculate_aim()
-  +detect_enemies()
+package "Enemy Types" {
+  class BasicEnemy {
+    -float direct_speed
+    +approach_direct(planet_pos)
+  }
+
+  class FastEnemy {
+    -float evasion_chance
+    +evade_defenses()
+    +move(planet_pos)
+  }
 }
 
-class LaserTurret {
-  -float range
-  -float rotation_speed
-  -float charge_time
-  +charge_laser()
-  +fire_laser()
+package "Management" {
+  class WaveManager {
+    -int current_wave
+    -float difficulty_level
+    -list enemy_types
+    -float spawn_rate
+    -int enemies_in_wave
+    -int enemies_spawned
+    -int last_spawn_time
+    -bool wave_active
+    -list wave_outcomes
+    +start_wave()
+    +spawn_enemies(current_time)
+    -_calculate_wave_size()
+    -_choose_enemy_type()
+    +increase_difficulty()
+    +wave_completed(success)
+  }
+
+  class GameStats {
+    -int player_score
+    -int waves_completed
+    -int resources_collected
+    -int enemies_defeated
+    -float accuracy
+    -int total_shots
+    -int total_hits
+    -dict damage_sources
+    -dict upgrade_choices
+    -list defense_placements
+    -list enemy_survival_times
+    -list resources_over_time
+    -int session_start_time
+    -SQLiteConnection conn
+    -SQLiteCursor cursor
+    +init_db()
+    +update_stats(stat_type, value, **kwargs)
+    +save_stats()
+    +generate_report()
+    +export_to_csv(filename)
+  }
+
+  class UIManager {
+    -GameController game_controller
+    -Font font_small
+    -Font font_medium
+    -Font font_large
+    +render_ui()
+    +show_game_over()
+    +show_controls_overlay()
+  }
+
+  class StatsDisplay {
+    -Surface screen
+    -Font font_small
+    -Font font_medium
+    -Font font_large
+    -SQLiteConnection conn
+    -SQLiteCursor cursor
+    -list sessions
+    -list placements
+    -list enemy_data
+    +load_data()
+    +generate_heatmap()
+    +plot_resource_graph()
+    +show_defense_effectiveness()
+    +display_enemy_analysis()
+    +render_stats_dashboard()
+  }
+
+  class GameController {
+    -Planet planet
+    -list defenses
+    -list active_enemies
+    -list projectiles
+    -WaveManager wave_manager
+    -GameStats stats
+    -int game_time
+    -class selected_defense_type
+    -bool game_over
+    -bool placement_mode
+    -bool wave_in_progress
+    -UIManager ui_manager
+    -bool show_help
+    +start_game()
+    +process_input()
+    +handle_click(pos)
+    +update_game_state()
+    +render()
+    +end_game()
+    +main_loop()
+  }
 }
 
-class MissileLauncher {
-  -int splash_radius
-  -float reload_time
-  -int missile_speed
-  +launch_missile()
-  +calculate_trajectory()
-}
-
-class ShieldGenerator {
-  -float shield_radius
-  -int shield_strength
-  -float recharge_rate
-  +generate_shield()
-  +absorb_damage()
-  +recharge()
-}
-
-class ResourceCollector {
-  -float collection_rate
-  -int storage_capacity
-  -int current_storage
-  +collect_resources()
-  +transfer_resources()
-  +upgrade_capacity()
-}
-
-abstract class Enemy {
-  -int health
-  -float speed
-  -int damage
-  -int reward
-  -Vector2 position
-  -String movement_pattern
-  +move()
-  +attack()
-  +take_damage(amount)
-  +check_destroyed()
-}
-
-class BasicEnemy {
-  -float direct_speed
-  +approach_direct()
-}
-
-class FastEnemy {
-  -float evasion_chance
-  +evade_defenses()
-}
-
-class ArmoredEnemy {
-  -float damage_reduction
-  -float shield_strength
-  +activate_shield()
-}
-
-class WaveManager {
-  -int current_wave
-  -float difficulty_level
-  -List<EnemyType> enemy_types
-  -float spawn_rate
-  +spawn_wave()
-  +increase_difficulty()
-  +calculate_next_wave()
-  +spawn_enemies()
-}
-
-class GameStats {
-  -int player_score
-  -int waves_completed
-  -int resources_collected
-  -int enemies_defeated
-  -float accuracy
-  -Dictionary performance_metrics
-  +update_stats(stat_type, value)
-  +save_stats()
-  +load_stats()
-  +generate_report()
-  +export_to_csv()
-}
-
-class GameController {
-  -Planet planet
-  -List<Defense> defenses
-  -List<Enemy> active_enemies
-  -WaveManager wave_manager
-  -GameStats stats
-  -float game_time
-  +start_game()
-  +end_game()
-  +process_input()
-  +update_game_state()
-  +check_collisions()
-  +manage_resources()
-}
-
-class UIManager {
-  -Dictionary ui_elements
-  -StatsDisplay stats_display
-  +render_ui()
-  +update_resource_display()
-  +show_game_over()
-  +display_wave_info()
-  +handle_ui_interaction()
-}
-
-class StatsDisplay {
-  -List<Graph> graphs
-  -List<Chart> charts
-  +generate_heatmap()
-  +plot_resource_graph()
-  +show_defense_effectiveness()
-  +display_enemy_analysis()
-  +render_stats_dashboard()
-}
-
+' Inheritance relationships
 GameObject <|-- Planet
 GameObject <|-- Defense
 GameObject <|-- Enemy
 
 Defense <|-- LaserTurret
-Defense <|-- MissileLauncher
-Defense <|-- ShieldGenerator
 Defense <|-- ResourceCollector
 
 Enemy <|-- BasicEnemy
 Enemy <|-- FastEnemy
-Enemy <|-- ArmoredEnemy
 
-GameController --> Planet : manages
-GameController --> Defense : manages
-GameController --> Enemy : manages
-GameController --> WaveManager : uses
-GameController --> GameStats : updates
+' Composition relationships
+GameController *-- Planet
+GameController *-- WaveManager
+GameController *-- GameStats
+GameController *-- UIManager
 
-UIManager --> StatsDisplay : displays
-GameController --> UIManager : updates
+' Association relationships
+GameController o-- Defense : manages
+GameController o-- Enemy : manages
+GameController o-- Projectile : manages
 
-WaveManager --> Enemy : creates
+WaveManager ..> Enemy : creates
+LaserTurret ..> Projectile : creates
+Defense ..> Enemy : targets
+
+GameController --> BasicEnemy
+GameController --> FastEnemy
+GameController --> LaserTurret
+GameController --> ResourceCollector
+
 GameStats --> StatsDisplay : provides data for
+
+' Notes and explanations
+note bottom of GameObject
+  Base class for all visible 
+  game entities
+end note
+
+note bottom of Defense
+  Abstract base class for all
+  defensive structures
+end note
+
+note bottom of Enemy
+  Abstract base class for all
+  enemy types
+end note
+
+note right of GameController
+  Central controller that
+  manages game state and
+  coordinates all components
+end note
+
+note bottom of StatsDisplay
+  Provides visualization of
+  gameplay statistics after
+  game over
+end note
 
 @enduml

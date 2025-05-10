@@ -132,11 +132,9 @@ class GameController:
         screen = pygame.display.get_surface()
         screen.fill(BACKGROUND_COLOR)
         
-        # Draw orbital rings
         for r in range(100, MAX_ORBITAL_RADIUS + 1, 50):
             pygame.draw.circle(screen, (*WHITE, 30), self.planet.position, r, 1)
             
-        # Draw placement guide
         if self.placement_mode:
             mouse_pos = pygame.mouse.get_pos()
             dx = mouse_pos[0] - self.planet.position[0]
@@ -146,7 +144,6 @@ class GameController:
                 color = GREEN if self.planet.resources >= self.selected_defense_type(mouse_pos, distance).cost else RED
                 pygame.draw.circle(screen, color, mouse_pos, 20, 2)
         
-        # Render game objects
         self.planet.render(screen)
         
         for defense in self.defenses:
@@ -158,10 +155,8 @@ class GameController:
         for projectile in self.projectiles:
             projectile.render(screen)
         
-        # Render UI
         self.ui_manager.render_ui()
 
-        # Show help overlay if enabled
         if self.show_help:
             self.ui_manager.show_controls_overlay()
         

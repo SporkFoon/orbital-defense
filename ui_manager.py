@@ -10,16 +10,13 @@ class UIManager:
         self.font_large = pygame.font.SysFont(None, 48)
         
     def render_ui(self):
-        # Top bar with semi-transparent background
         ui_overlay = pygame.Surface((SCREEN_WIDTH, 60), pygame.SRCALPHA)
-        ui_overlay.fill((5, 5, 20, 220))  # Darker blue with more opacity
+        ui_overlay.fill((5, 5, 20, 220))
         pygame.display.get_surface().blit(ui_overlay, (0, 0))
     
-        # Left side stats
         stats_x = 20
         stats_y = 10
     
-        # Health display
         health_percent = self.game_controller.planet.health / 100
         health_width = 120
         health_height = 10
@@ -32,18 +29,15 @@ class UIManager:
         pygame.draw.rect(pygame.display.get_surface(), health_color, (stats_x + 30, stats_y, int(health_width * health_percent), health_height), 0, 3)
         pygame.draw.rect(pygame.display.get_surface(), (100, 100, 120), (stats_x + 30, stats_y, health_width, health_height), 1, 3)
     
-        # Resource counter
         resource_y = stats_y + 22
         pygame.draw.circle(pygame.display.get_surface(), GREEN, (stats_x + 8, resource_y + 4), 6)  # Resource icon
         resource_text = self.font_small.render(f"{int(self.game_controller.planet.resources)}", True, WHITE)
         pygame.display.get_surface().blit(resource_text, (stats_x + 20, resource_y))
     
-        # Wave info
         center_x = SCREEN_WIDTH // 2 - 40
         wave_text = self.font_small.render(f"WAVE {self.game_controller.wave_manager.current_wave}", True, WHITE)
         pygame.display.get_surface().blit(wave_text, (center_x, stats_y))
     
-        # Enemy counter
         enemy_icon_size = 12
         enemy_count = len(self.game_controller.active_enemies)
         enemy_total = self.game_controller.wave_manager.enemies_in_wave
@@ -54,12 +48,10 @@ class UIManager:
         pygame.draw.circle(pygame.display.get_surface(), PURPLE, (enemy_icon_x, enemy_icon_y), enemy_icon_size // 2)
         pygame.display.get_surface().blit(enemy_text, (enemy_icon_x + 15, resource_y))
     
-        # Score display
         score_x = SCREEN_WIDTH - 120
         score_text = self.font_small.render(f"SCORE: {self.game_controller.stats.player_score}", True, WHITE)
         pygame.display.get_surface().blit(score_text, (score_x, stats_y))
     
-        # Bottom dock for defense selection - only show when not in wave
         if not self.game_controller.wave_in_progress:
             dock_height = 60
             dock_overlay = pygame.Surface((SCREEN_WIDTH, dock_height), pygame.SRCALPHA)
@@ -70,7 +62,6 @@ class UIManager:
             button_height = 40
             button_y = SCREEN_HEIGHT - dock_height + 10
         
-            # Laser Turret button
             laser_button_x = SCREEN_WIDTH // 2 - button_width - 15
             laser_selected = self.game_controller.selected_defense_type == LaserTurret
         
@@ -91,7 +82,6 @@ class UIManager:
             laser_cost = self.font_small.render(f"${150}", True, (150, 150, 255))
             pygame.display.get_surface().blit(laser_cost, (laser_button_x + 45, button_y + 23))
         
-            # Resource Collector button
             collector_button_x = SCREEN_WIDTH // 2 + 15
             collector_selected = self.game_controller.selected_defense_type == ResourceCollector
         
@@ -110,7 +100,6 @@ class UIManager:
             collector_cost = self.font_small.render(f"${100}", True, (150, 255, 150))
             pygame.display.get_surface().blit(collector_cost, (collector_button_x + 45, button_y + 23))
     
-        # Placement mode notification
         if self.game_controller.placement_mode:
             placement_text = self.font_medium.render("PLACEMENT MODE", True, GREEN)
             text_width = placement_text.get_width()
@@ -120,7 +109,6 @@ class UIManager:
                             (SCREEN_WIDTH // 2 - text_width // 2 - 15, 70, text_width + 30, 40), 1, 10)
             pygame.display.get_surface().blit(placement_text, (SCREEN_WIDTH // 2 - text_width // 2, 75))
     
-        # Wave complete notification
         if not self.game_controller.wave_in_progress and self.game_controller.wave_manager.current_wave > 0:
             complete_text = self.font_medium.render("Wave Complete! Press SPACE for next wave", True, WHITE)
             text_width = complete_text.get_width()
@@ -131,7 +119,6 @@ class UIManager:
             pygame.display.get_surface().blit(complete_text, (SCREEN_WIDTH // 2 - text_width // 2, SCREEN_HEIGHT - 95))
             
     def show_game_over(self):
-        # Create gradient background
         game_over_bg = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         for y in range(SCREEN_HEIGHT):
             alpha = min(255, y * 0.6)
@@ -139,7 +126,6 @@ class UIManager:
             pygame.draw.line(game_over_bg, color, (0, y), (SCREEN_WIDTH, y))
         pygame.display.get_surface().blit(game_over_bg, (0, 0))
     
-        # Game over panel
         box_width, box_height = 400, 300
         box_x = SCREEN_WIDTH // 2 - box_width // 2
         box_y = SCREEN_HEIGHT // 2 - box_height // 2
@@ -149,11 +135,9 @@ class UIManager:
         pygame.draw.rect(panel, (100, 100, 150), (0, 0, box_width, box_height), 2, 15)
         pygame.display.get_surface().blit(panel, (box_x, box_y))
     
-        # Game over text
         game_over_text = self.font_large.render("GAME OVER", True, RED)
         pygame.display.get_surface().blit(game_over_text, (SCREEN_WIDTH // 2 - game_over_text.get_width() // 2, box_y + 30))
     
-        # Stats
         score_text = self.font_medium.render(
             f"Final Score: {self.game_controller.stats.player_score}", True, WHITE)
         waves_text = self.font_medium.render(
@@ -162,7 +146,6 @@ class UIManager:
         pygame.display.get_surface().blit(score_text, (SCREEN_WIDTH // 2 - score_text.get_width() // 2, box_y + 100))
         pygame.display.get_surface().blit(waves_text, (SCREEN_WIDTH // 2 - waves_text.get_width() // 2, box_y + 150))
     
-        # Continue button
         continue_box_width, continue_box_height = 300, 50
         continue_box_x = SCREEN_WIDTH // 2 - continue_box_width // 2
         continue_box_y = box_y + box_height - 70
@@ -178,7 +161,6 @@ class UIManager:
     
         pygame.display.flip()
     
-        # Wait for key press
         waiting = True
         while waiting:
             for event in pygame.event.get():

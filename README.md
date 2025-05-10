@@ -14,26 +14,44 @@ Orbital Defense is a strategic tower defense game set in space. Players defend t
 - Wave-based gameplay: Increasingly difficult waves of enemies
 - Comprehensive statistics tracking: Player performance metrics visualized after gameplay
 
-## How to Play
+## How to Run
 
-1. Requirements: Python 3.7+ and PyGame
-2. Installation: `pip install pygame`
-3. Run the game: `python game.py`
+1. Make sure you have Python 3.x and PyGame installed:
+   ```
+   pip install pygame
+   ```
 
-### Controls
+2. Run the game:
+   ```
+   python main.py
+   ```
 
-- **1** - Select Laser Turret
-- **2** - Select Resource Collector
-- **P** - Toggle placement mode
-- **Left Mouse Button** - Place defense (in placement mode)
-- **Space** - Start the next wave
-- **Esc** - Quit the game
+## Controls
 
-## Project Structure
+- `1` - Select Laser Turret
+- `2` - Select Resource Collector
+- `P` - Toggle placement mode
+- `Left Mouse Button` - Place selected defense (in placement mode)
+- `Space` - Start next wave
+- `H` - Toggle help overlay
+- `Esc` - Quit game
 
-- `game.py` - Main game file
-- `data/` - Directory for game statistics storage
-- `docs/` - Documentation including proposal and UML diagram
+
+## Game Structure
+
+The game is organized into the following modules:
+
+- `main.py` - Entry point for the game
+- `constants.py` - Game constants, colors, and settings
+- `game_objects.py` - Base game object classes
+- `defenses.py` - Defense tower implementations
+- `projectiles.py` - Projectile mechanics
+- `enemies.py` - Enemy types and behaviors
+- `wave_manager.py` - Controls enemy wave generation
+- `game_stats.py` - Statistics tracking and database functionality
+- `ui_manager.py` - UI rendering and user interface
+- `game_controller.py` - Main game logic
+- `stats_display.py` - Statistics visualization dashboard
 
 ## Future Enhancements
 

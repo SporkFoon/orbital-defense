@@ -1,10 +1,12 @@
 # Orbital Defense
 
-A space-themed tower defense game where players must protect their planetary base from waves of incoming alien invaders.
+A space-themed tower defense game where players must protect their planetary base from waves of incoming alien invaders
 
 ## Game Concept
 
-Orbital Defense is a strategic tower defense game set in space. Players defend their home planet from waves of alien invaders by strategically placing defensive structures in orbit. Each wave becomes progressively more challenging, introducing new enemy types with unique behaviors and resistances.
+Orbital Defense is a strategic tower defense game set in space. Players defend their home planet from waves of alien invaders by strategically placing defensive structures in orbit. Each wave becomes progressively more challenging
+
+![Gameplay Screenshot](images/gameplay.png)
 
 ## Features
 
@@ -14,14 +16,20 @@ Orbital Defense is a strategic tower defense game set in space. Players defend t
 - Wave-based gameplay: Increasingly difficult waves of enemies
 - Comprehensive statistics tracking: Player performance metrics visualized after gameplay
 
-## How to Run
+### Instructions
 
-1. Make sure you have Python 3.x and PyGame installed:
+1. Clone the repository:
+   ```
+   git clone https://github.com/SporkFoon/orbital-defense.git
+   cd orbital-defense
+   ```
+
+2. Install PyGame if you don't have it:
    ```
    pip install pygame
    ```
 
-2. Run the game:
+3. Run the game:
    ```
    python main.py
    ```
@@ -39,8 +47,6 @@ Orbital Defense is a strategic tower defense game set in space. Players defend t
 
 ## Game Structure
 
-The game is organized into the following modules:
-
 - `main.py` - Entry point for the game
 - `constants.py` - Game constants, colors, and settings
 - `game_objects.py` - Base game object classes
@@ -53,9 +59,16 @@ The game is organized into the following modules:
 - `game_controller.py` - Main game logic
 - `stats_display.py` - Statistics visualization dashboard
 
-## Future Enhancements
+## Statistics and Analysis
 
-- Additional defense types (missile launchers, shield generators)
-- More enemy varieties with unique behaviors
-- Tech tree for upgrades
-- Sound effects and improved graphics
+After each game, detailed statistics are presented to help you analyze your performance
+
+These statistics include:
+- Defense placement heatmaps showing your strategic preferences
+![placement heatmaps](images/heatmap.png)
+- Resource collection trends across games
+![Resource collection](images/Resources graph.png)
+- Enemy survival analysis
+![survival analysis](images/enemy survival.png)
+- Overall performance metrics
+![Statistics Summary](images/stats.png)

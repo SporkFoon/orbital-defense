@@ -121,41 +121,56 @@ class GameStats:
             self.accuracy = self.total_hits / self.total_shots
             
     def save_stats(self):
-        session_duration = pygame.time.get_ticks() - self.session_start_time
-        date_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        try:
+            session_duration = pygame.time.get_ticks() - self.session_start_time
+            date_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        self.cursor.execute('''
-        INSERT INTO game_sessions (date, duration, waves_completed, score, resources_collected, enemies_defeated, accuracy)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (date_str, session_duration, self.waves_completed, self.player_score, 
-              self.resources_collected, self.enemies_defeated, self.accuracy))
+            resources_collected = round(self.resources_collected)
         
-        session_id = self.cursor.lastrowid
-        
-        for placement in self.defense_placements:
             self.cursor.execute('''
-            INSERT INTO defense_placements (session_id, defense_type, orbital_radius, angle, upgrade_level, damage_dealt)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ''', (session_id, placement['type'], placement['orbital_radius'], placement['angle'], 1, 0))
-            
-        for enemy_data in self.enemy_survival_times:
-            self.cursor.execute('''
-            INSERT INTO enemy_data (session_id, enemy_type, survival_time, damage_dealt, penetration_depth)
-            VALUES (?, ?, ?, ?, ?)
-            ''', (session_id, enemy_data['enemy_type'], enemy_data['survival_time'], 0, enemy_data['penetration_depth']))
-            
-        self.conn.commit()
+            INSERT INTO game_sessions (date, duration, waves_completed, score, resources_collected, enemies_defeated, accuracy)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (date_str, session_duration, self.waves_completed, self.player_score, 
+                resources_collected, self.enemies_defeated, self.accuracy))
         
-        with open(f'data/game_session_{date_str.replace(":", "-").replace(" ", "_")}.csv', 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(['Metric', 'Value'])
-            writer.writerow(['Date', date_str])
-            writer.writerow(['Duration (ms)', session_duration])
-            writer.writerow(['Waves Completed', self.waves_completed])
-            writer.writerow(['Score', self.player_score])
-            writer.writerow(['Resources Collected', self.resources_collected])
-            writer.writerow(['Enemies Defeated', self.enemies_defeated])
-            writer.writerow(['Accuracy', self.accuracy])
+            session_id = self.cursor.lastrowid
+        
+            for placement in self.defense_placements:
+                self.cursor.execute('''
+                INSERT INTO defense_placements (session_id, defense_type, orbital_radius, angle, upgrade_level, damage_dealt)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ''', (session_id, placement['type'], placement['orbital_radius'], placement['angle'], 1, 0))
+            
+            for enemy_data in self.enemy_survival_times:
+                self.cursor.execute('''
+                INSERT INTO enemy_data (session_id, enemy_type, survival_time, damage_dealt, penetration_depth)
+                VALUES (?, ?, ?, ?, ?)
+                ''', (session_id, enemy_data['enemy_type'], enemy_data['survival_time'], 0, enemy_data['penetration_depth']))
+            
+            self.conn.commit()
+        
+            with open(f'data/game_session_{date_str.replace(":", "-").replace(" ", "_")}.csv', 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(['Metric', 'Value'])
+                writer.writerow(['Date', date_str])
+                writer.writerow(['Duration (ms)', session_duration])
+                writer.writerow(['Waves Completed', self.waves_completed])
+                writer.writerow(['Score', self.player_score])
+                writer.writerow(['Resources Collected', resources_collected])
+                writer.writerow(['Enemies Defeated', self.enemies_defeated])
+                writer.writerow(['Accuracy', self.accuracy])
+            
+        except sqlite3.Error as e:
+            print(f"Database error while saving stats: {e}")
+            try:
+                with open(f'data/emergency_backup_{datetime.now().strftime("%Y%m%d%H%M%S")}.csv', 'w', newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(['Emergency backup due to database error'])
+                    writer.writerow(['Score', self.player_score])
+                    writer.writerow(['Waves', self.waves_completed])
+                    writer.writerow(['Resources', round(self.resources_collected)])
+            except Exception as ex:
+                print(f"Failed to create emergency backup: {ex}")
         
     def generate_report(self):
         return {

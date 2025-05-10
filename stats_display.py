@@ -16,23 +16,36 @@ class StatsDisplay:
         self.cursor = self.conn.cursor()
         
     def load_data(self):
-        self.cursor.execute("SELECT * FROM game_sessions ORDER BY date DESC LIMIT 10")
-        self.sessions = self.cursor.fetchall()
+        try:
+            self.cursor.execute("SELECT * FROM game_sessions ORDER BY date DESC LIMIT 10")
+            self.sessions = self.cursor.fetchall()
         
-        self.cursor.execute("""
-        SELECT defense_type, orbital_radius, angle 
-        FROM defense_placements 
-        WHERE session_id = (SELECT id FROM game_sessions ORDER BY date DESC LIMIT 1)
-        """)
-        self.placements = self.cursor.fetchall()
-        
-        self.cursor.execute("""
-        SELECT enemy_type, AVG(survival_time), COUNT(*) 
-        FROM enemy_data 
-        WHERE session_id = (SELECT id FROM game_sessions ORDER BY date DESC LIMIT 1)
-        GROUP BY enemy_type
-        """)
-        self.enemy_data = self.cursor.fetchall()
+            if self.sessions:
+                latest_session_id = self.sessions[0][0]
+            
+                self.cursor.execute("""
+                SELECT defense_type, orbital_radius, angle 
+                FROM defense_placements 
+                WHERE session_id = ?
+                """, (latest_session_id,))
+                self.placements = self.cursor.fetchall()
+            
+                self.cursor.execute("""
+                SELECT enemy_type, AVG(survival_time), COUNT(*) 
+                FROM enemy_data 
+                WHERE session_id = ?
+                GROUP BY enemy_type
+                """, (latest_session_id,))
+                self.enemy_data = self.cursor.fetchall()
+            else:
+                self.placements = []
+                self.enemy_data = []
+            
+        except sqlite3.Error as e:
+            print(f"Database error while loading data: {e}")
+            self.sessions = []
+            self.placements = []
+            self.enemy_data = []
         
     def generate_heatmap(self):
         heatmap = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
@@ -53,63 +66,84 @@ class StatsDisplay:
         return heatmap
         
     def plot_resource_graph(self):
-        self.cursor.execute("""
-        SELECT resources_collected FROM game_sessions 
-        ORDER BY date DESC LIMIT 10
-        """)
-        resources = self.cursor.fetchall()
+        try:
+            self.cursor.execute("""
+            SELECT resources_collected, date FROM game_sessions 
+            ORDER BY date DESC LIMIT 10
+            """)
+            resources_data = self.cursor.fetchall()
         
-        graph = pygame.Surface((600, 300), pygame.SRCALPHA)
-        graph.fill((*BLACK, 150))
+            graph = pygame.Surface((600, 350), pygame.SRCALPHA)
+            graph.fill((0, 0, 0, 150))
         
-        pygame.draw.line(graph, WHITE, (50, 250), (550, 250))
-        pygame.draw.line(graph, WHITE, (50, 250), (50, 50))
+            pygame.draw.line(graph, (255, 255, 255), (70, 290), (570, 290), 2)  # X-axis
+            pygame.draw.line(graph, (255, 255, 255), (70, 290), (70, 40), 2)    # Y-axis
         
-        if resources:
-            max_value = max([r[0] for r in resources]) if resources else 1
-            for i, (r,) in enumerate(resources):
-                bar_height = (r / max_value) * 200 if max_value > 0 else 0
-                pygame.draw.rect(graph, GREEN, (60 + i * 50, 250 - bar_height, 40, bar_height))
-                
-            for i, (r,) in enumerate(resources):
-                text = self.font_small.render(str(r), True, WHITE)
-                graph.blit(text, (60 + i * 50, 255))
-                
-        return graph
+            x_label = self.font_small.render("Game Sessions (Most Recent First)", True, (255, 255, 255))
+            graph.blit(x_label, (250, 320))
         
-    def show_defense_effectiveness(self):
-        self.cursor.execute("""
-        SELECT defense_type, COUNT(*) 
-        FROM defense_placements 
-        GROUP BY defense_type
-        """)
-        defense_counts = self.cursor.fetchall()
+            y_label = pygame.Surface((25, 150), pygame.SRCALPHA)
+            y_label_text = self.font_small.render("Resources Collected", True, (255, 255, 255))
+            y_label.blit(pygame.transform.rotate(y_label_text, 90), (0, 0))
+            graph.blit(y_label, (20, 100))
         
-        graph = pygame.Surface((600, 300), pygame.SRCALPHA)
-        graph.fill((*BLACK, 150))
-        
-        if defense_counts:
-            total = sum([count for _, count in defense_counts])
-            colors = [RED, GREEN, BLUE, YELLOW, CYAN]
+            if not resources_data:
+                no_data_text = self.font_small.render("No game history available", True, (255, 0, 0))
+                graph.blit(no_data_text, (200, 150))
+                return graph
             
-            start_angle = 0
-            for i, (defense_type, count) in enumerate(defense_counts):
-                angle = count / total * 360 if total > 0 else 0
-                end_angle = start_angle + angle
+            max_value = max(max([r[0] for r in resources_data] or [1]), 1)
+        
+            max_value = max_value * 1.1
+        
+            bar_width = min(40, 400 // len(resources_data))
+            spacing = min(15, 60 // len(resources_data))
+        
+            for i in range(5):
+                y_pos = 290 - (i * 250 / 4)
+                value = int(max_value * i / 4)
+                marker_text = self.font_small.render(str(value), True, (255, 255, 255))
+                graph.blit(marker_text, (40 - marker_text.get_width(), y_pos - 10))
+                pygame.draw.line(graph, (100, 100, 100), (65, y_pos), (570, y_pos), 1)  # Horizontal grid line
+        
+            for i, (resource_value, date_str) in enumerate(resources_data):
+                resource_value = round(resource_value)
+            
+                bar_height = (resource_value / max_value) * 250 if max_value > 0 else 0
+            
+                x_pos = 80 + i * (bar_width + spacing)
+            
+                pygame.draw.rect(graph, (0, 255, 0), 
+                                (x_pos, 290 - bar_height, bar_width, bar_height))
+            
+                value_text = self.font_small.render(str(resource_value), True, (255, 255, 255))
+                text_x = x_pos + (bar_width // 2) - (value_text.get_width() // 2)
+                text_y = 285 - bar_height - value_text.get_height()
+                if bar_height > 20:
+                    graph.blit(value_text, (text_x, text_y))
+            
+                try:
+                    date = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+                    date_short = date.strftime('%m/%d %H:%M')
+                except:
+                    date_short = f"Game {i+1}"
                 
-                pygame.draw.arc(graph, colors[i % len(colors)], (100, 50, 200, 200), 
-                               math.radians(start_angle), math.radians(end_angle), 100)
+                session_text = self.font_small.render(f"{i+1}", True, (255, 255, 255))
+                graph.blit(session_text, (x_pos + bar_width // 2 - 5, 295))
+            
+                if i % 2 == 0:
+                    date_label = self.font_small.render(date_short, True, (200, 200, 200))
+                    rotated_label = pygame.transform.rotate(date_label, 45)
+                    graph.blit(rotated_label, (x_pos - 5, 300))
                 
-                label_angle = math.radians(start_angle + angle / 2)
-                label_x = 200 + math.cos(label_angle) * 150
-                label_y = 150 + math.sin(label_angle) * 150
-                
-                label = self.font_small.render(f"{defense_type}: {count}", True, WHITE)
-                graph.blit(label, (label_x, label_y))
-                
-                start_angle = end_angle
-                
-        return graph
+            return graph
+        
+        except sqlite3.Error as e:
+            error_graph = pygame.Surface((600, 350), pygame.SRCALPHA)
+            error_graph.fill((0, 0, 0, 150))
+            error_text = self.font_small.render(f"Database error: {e}", True, (255, 0, 0))
+            error_graph.blit(error_text, (50, 150))
+            return error_graph
         
     def display_enemy_analysis(self):
         self.cursor.execute("""
@@ -147,94 +181,117 @@ class StatsDisplay:
         
     def render_stats_dashboard(self):
         self.load_data()
-        
+    
         running = True
         current_page = 0
         total_pages = 4
-        
+    
+        background_color = (5, 5, 20)
+        title_color = (220, 220, 255)
+        highlight_color = (100, 100, 220)
+    
         while running:
-            self.screen.fill(BLACK)
-            
-            title = self.font_large.render("Orbital Defense Statistics", True, WHITE)
-            self.screen.blit(title, (SCREEN_WIDTH // 2 - 200, 20))
-            
-            nav_text = self.font_small.render("Press LEFT/RIGHT to navigate, ESC to exit", True, WHITE)
-            self.screen.blit(nav_text, (SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT - 30))
-            
+            self.screen.fill(background_color)
+        
+            header_bar = pygame.Surface((SCREEN_WIDTH, 80), pygame.SRCALPHA)
+            header_bar.fill((20, 20, 40, 180))
+            self.screen.blit(header_bar, (0, 0))
+        
+            title = self.font_large.render("Orbital Defense Statistics", True, title_color)
+            self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 20))
+        
+            footer_bar = pygame.Surface((SCREEN_WIDTH, 40), pygame.SRCALPHA)
+            footer_bar.fill((20, 20, 40, 180))
+            self.screen.blit(footer_bar, (0, SCREEN_HEIGHT - 40))
+        
+            nav_text = self.font_small.render(
+                f"Page {current_page+1}/{total_pages} - Press LEFT/RIGHT to navigate, ESC to exit", 
+                True, (255, 255, 255))
+            self.screen.blit(nav_text, (SCREEN_WIDTH // 2 - nav_text.get_width() // 2, SCREEN_HEIGHT - 30))
+        
             if current_page == 0:
-                summary_title = self.font_medium.render("Game Summary", True, WHITE)
-                self.screen.blit(summary_title, (SCREEN_WIDTH // 2 - 100, 80))
-                
+                page_title = "Game Summary"
+            elif current_page == 1:
+                page_title = "Defense Placement Heatmap"
+            elif current_page == 2:
+                page_title = "Resource Collection History"
+            elif current_page == 3:
+                page_title = "Enemy Survival Analysis"
+            
+            page_title_text = self.font_medium.render(page_title, True, highlight_color)
+            self.screen.blit(page_title_text, (SCREEN_WIDTH // 2 - page_title_text.get_width() // 2, 80))
+        
+            if current_page == 0:
                 if self.sessions:
                     latest = self.sessions[0]
+                
+                    panel = pygame.Surface((500, 350), pygame.SRCALPHA)
+                    panel.fill((30, 30, 60, 180))
+                    pygame.draw.rect(panel, highlight_color, (0, 0, 500, 350), 2, 10)
+                    self.screen.blit(panel, (SCREEN_WIDTH // 2 - 250, 120))
+                
                     stats = [
-                        f"Date: {latest[1]}",
-                        f"Duration: {latest[2]/1000:.1f} seconds",
-                        f"Waves Completed: {latest[3]}",
-                        f"Score: {latest[4]}",
-                        f"Resources Collected: {latest[5]}",
-                        f"Enemies Defeated: {latest[6]}",
-                        f"Accuracy: {latest[7]*100:.1f}%"
+                        ("Date", f"{latest[1]}"),
+                        ("Duration", f"{latest[2]/1000:.1f} seconds"),
+                        ("Waves Completed", f"{latest[3]}"),
+                        ("Score", f"{latest[4]}"),
+                        ("Resources Collected", f"{latest[5]}"),
+                        ("Enemies Defeated", f"{latest[6]}"),
+                        ("Accuracy", f"{latest[7]*100:.1f}%")
                     ]
+                
+                    for i, (label, value) in enumerate(stats):
+                        label_text = self.font_small.render(f"{label}:", True, (200, 200, 255))
+                        value_text = self.font_small.render(value, True, (255, 255, 255))
                     
-                    for i, stat in enumerate(stats):
-                        stat_text = self.font_small.render(stat, True, WHITE)
-                        self.screen.blit(stat_text, (SCREEN_WIDTH // 2 - 150, 120 + i * 30))
+                        self.screen.blit(label_text, (SCREEN_WIDTH // 2 - 220, 150 + i * 40))
+                        self.screen.blit(value_text, (SCREEN_WIDTH // 2 + 20, 150 + i * 40))
                 else:
-                    no_data = self.font_medium.render("No game data available", True, RED)
-                    self.screen.blit(no_data, (SCREEN_WIDTH // 2 - 120, 200))
-                    
+                    no_data = self.font_medium.render("No game data available", True, (255, 100, 100))
+                    self.screen.blit(no_data, (SCREEN_WIDTH // 2 - no_data.get_width() // 2, 200))
+                
             elif current_page == 1:
-                heatmap_title = self.font_medium.render("Defense Placement Heatmap", True, WHITE)
-                self.screen.blit(heatmap_title, (SCREEN_WIDTH // 2 - 150, 80))
+                if self.placements:
+                    heatmap = self.generate_heatmap()
+                    self.screen.blit(heatmap, (0, 0))
                 
-                heatmap = self.generate_heatmap()
-                self.screen.blit(heatmap, (0, 0))
+                    pygame.draw.circle(self.screen, (50, 50, 200), (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2), 50)
+                    pygame.draw.circle(self.screen, (100, 100, 255), (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2), 50, 2)
                 
-                pygame.draw.circle(self.screen, BLUE, (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2), 50)
+                    legend_panel = pygame.Surface((200, 100), pygame.SRCALPHA)
+                    legend_panel.fill((20, 20, 40, 200))
+                    pygame.draw.rect(legend_panel, (100, 100, 150), (0, 0, 200, 100), 2, 5)
+                    self.screen.blit(legend_panel, (SCREEN_WIDTH - 220, 120))
                 
-                red_label = self.font_small.render("Red: Laser Turrets", True, RED)
-                green_label = self.font_small.render("Green: Resource Collectors", True, GREEN)
+                    legend_title = self.font_small.render("Legend", True, (200, 200, 255))
+                    self.screen.blit(legend_title, (SCREEN_WIDTH - 190, 125))
                 
-                self.screen.blit(red_label, (SCREEN_WIDTH - 200, 120))
-                self.screen.blit(green_label, (SCREEN_WIDTH - 200, 150))
+                    pygame.draw.circle(self.screen, (255, 0, 0), (SCREEN_WIDTH - 200, 155), 8)
+                    pygame.draw.circle(self.screen, (0, 255, 0), (SCREEN_WIDTH - 200, 180), 8)
+                
+                    red_label = self.font_small.render("Laser Turrets", True, (255, 100, 100))
+                    green_label = self.font_small.render("Resource Collectors", True, (100, 255, 100))
+                
+                    self.screen.blit(red_label, (SCREEN_WIDTH - 180, 150))
+                    self.screen.blit(green_label, (SCREEN_WIDTH - 180, 175))
+                else:
+                    no_data = self.font_medium.render("No placement data available", True, (255, 100, 100))
+                    self.screen.blit(no_data, (SCREEN_WIDTH // 2 - no_data.get_width() // 2, 200))
                 
             elif current_page == 2:
-                resource_title = self.font_medium.render("Resource Collection History", True, WHITE)
-                self.screen.blit(resource_title, (SCREEN_WIDTH // 2 - 150, 80))
-                
                 resource_graph = self.plot_resource_graph()
                 self.screen.blit(resource_graph, (SCREEN_WIDTH // 2 - 300, 120))
                 
-                x_label = self.font_small.render("Game Sessions (Most Recent First)", True, WHITE)
-                y_label = self.font_small.render("Resources", True, WHITE)
-                
-                self.screen.blit(x_label, (SCREEN_WIDTH // 2 - 100, 430))
-                
-                y_surface = pygame.Surface((30, 100), pygame.SRCALPHA)
-                y_surface.fill((0, 0, 0, 0))
-                y_surface.blit(pygame.transform.rotate(y_label, 90), (0, 0))
-                self.screen.blit(y_surface, (SCREEN_WIDTH // 2 - 290, 200))
-                
             elif current_page == 3:
-                enemy_title = self.font_medium.render("Enemy Survival Analysis", True, WHITE)
-                self.screen.blit(enemy_title, (SCREEN_WIDTH // 2 - 150, 80))
-                
-                enemy_graph = self.display_enemy_analysis()
-                self.screen.blit(enemy_graph, (SCREEN_WIDTH // 2 - 300, 120))
-                
-                x_label = self.font_small.render("Enemy Types", True, WHITE)
-                y_label = self.font_small.render("Avg. Survival Time (ms)", True, WHITE)
-                
-                self.screen.blit(x_label, (SCREEN_WIDTH // 2 - 50, 430))
-                
-                y_surface = pygame.Surface((30, 180), pygame.SRCALPHA)
-                y_surface.fill((0, 0, 0, 0))
-                y_surface.blit(pygame.transform.rotate(y_label, 90), (0, 0))
-                self.screen.blit(y_surface, (SCREEN_WIDTH // 2 - 290, 180))
+                if self.enemy_data:
+                    enemy_graph = self.display_enemy_analysis()
+                    self.screen.blit(enemy_graph, (SCREEN_WIDTH // 2 - 300, 120))
+                else:
+                    no_data = self.font_medium.render("No enemy data available", True, (255, 100, 100))
+                    self.screen.blit(no_data, (SCREEN_WIDTH // 2 - no_data.get_width() // 2, 200))
                 
             pygame.display.flip()
-            
+        
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False

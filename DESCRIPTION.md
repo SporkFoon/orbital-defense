@@ -6,7 +6,7 @@ A space-themed tower defense game where players must protect their planetary bas
 
 Orbital Defense is a strategic tower defense game set in space. Players defend their home planet from waves of alien invaders by strategically placing defensive structures in orbit. Each wave becomes progressively more challenging
 
-![Gameplay Screenshot](images/gameplay.png)
+![Gameplay Screenshot](screenshots/gameplay/gameplay.png)
 
 ## Features
 
@@ -65,10 +65,10 @@ After each game, detailed statistics are presented to help you analyze your perf
 
 These statistics include:
 - Defense placement heatmaps showing your strategic preferences
-![placement heatmaps](images/heatmap.png)
+![placement heatmaps](screenshots/visualization/heatmap.png)
 - Resource collection trends across games
-![Resource collection](images/resourcesgraph.png)
+![Resource collection](screenshots/visualization/resourcesgraph.png)
 - Enemy survival analysis
-![survival analysis](images/enemysurvival.png)
+![survival analysis](screenshots/visualization/enemysurvival.png)
 - Overall performance metrics
-![Statistics Summary](images/stats.png)
+![Statistics Summary](screenshots/visualization/stats.png)

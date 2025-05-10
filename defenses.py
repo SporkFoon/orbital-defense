@@ -1,3 +1,4 @@
+import pygame
 from game_objects import Defense
 from projectiles import Projectile
 from config import RED, GREEN, YELLOW

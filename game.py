@@ -552,6 +552,7 @@ class GameController:
         self.placement_mode = False
         self.wave_in_progress = False
         self.ui_manager = UIManager(self)
+        self.show_help = True
         
     def start_game(self):
         self.game_time = pygame.time.get_ticks()
@@ -582,6 +583,9 @@ class GameController:
                     
                 elif event.key == pygame.K_p:
                     self.placement_mode = not self.placement_mode
+
+                elif event.key == pygame.K_h:
+                    self.show_help = not self.show_help
                     
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
@@ -653,7 +657,7 @@ class GameController:
                 self.wave_in_progress = False
                 self.wave_manager.wave_completed(True)
                 self.stats.update_stats("wave_completed")
-                
+    
     def render(self):
         screen.fill(BACKGROUND_COLOR)
         
@@ -681,6 +685,9 @@ class GameController:
             projectile.render(screen)
             
         self.ui_manager.render_ui()
+
+        if self.show_help:
+            self.ui_manager.show_controls_overlay()
         
         pygame.display.flip()
         
@@ -707,104 +714,157 @@ class UIManager:
         self.font_large = pygame.font.SysFont(None, 48)
         
     def render_ui(self):
+        ui_overlay = pygame.Surface((SCREEN_WIDTH, 60), pygame.SRCALPHA)
+        ui_overlay.fill((5, 5, 20, 220))  # Darker blue with more opacity
+        screen.blit(ui_overlay, (0, 0))
+    
+        stats_x = 20
+        stats_y = 10
+    
         health_percent = self.game_controller.planet.health / 100
-        health_width = 200 
-        health_height = 20
-        health_x = 20
-        health_y = 20
+        health_width = 120
+        health_height = 10
+    
+        health_color = (0, 230, 0) if health_percent > 0.5 else (230, 230, 0) if health_percent > 0.25 else (230, 0, 0)
+        health_text = self.font_small.render(f"{int(self.game_controller.planet.health)}", True, health_color)
+        screen.blit(health_text, (stats_x, stats_y - 2))
+    
+        pygame.draw.rect(screen, (30, 30, 40), (stats_x + 30, stats_y, health_width, health_height), 0, 3)
+        pygame.draw.rect(screen, health_color, (stats_x + 30, stats_y, int(health_width * health_percent), health_height), 0, 3)
+        pygame.draw.rect(screen, (100, 100, 120), (stats_x + 30, stats_y, health_width, health_height), 1, 3)
+    
+        resource_y = stats_y + 22
+        pygame.draw.circle(screen, GREEN, (stats_x + 8, resource_y + 4), 6)  # Resource icon
+        resource_text = self.font_small.render(f"{int(self.game_controller.planet.resources)}", True, WHITE)
+        screen.blit(resource_text, (stats_x + 20, resource_y))
+    
+        center_x = SCREEN_WIDTH // 2 - 40
+        wave_text = self.font_small.render(f"WAVE {self.game_controller.wave_manager.current_wave}", True, WHITE)
+        screen.blit(wave_text, (center_x, stats_y))
+    
+        enemy_icon_size = 12
+        enemy_count = len(self.game_controller.active_enemies)
+        enemy_total = self.game_controller.wave_manager.enemies_in_wave
+        enemy_text = self.font_small.render(f"{enemy_count}/{enemy_total}", True, PURPLE)
+    
+        enemy_icon_x = center_x + 5
+        enemy_icon_y = resource_y + 2
+        pygame.draw.circle(screen, PURPLE, (enemy_icon_x, enemy_icon_y), enemy_icon_size // 2)
+        screen.blit(enemy_text, (enemy_icon_x + 15, resource_y))
+    
+        score_x = SCREEN_WIDTH - 120
+        score_text = self.font_small.render(f"SCORE: {self.game_controller.stats.player_score}", True, WHITE)
+        screen.blit(score_text, (score_x, stats_y))
+    
+        if not self.game_controller.wave_in_progress:
+            dock_height = 60
+            dock_overlay = pygame.Surface((SCREEN_WIDTH, dock_height), pygame.SRCALPHA)
+            dock_overlay.fill((5, 5, 20, 220))  # Match top bar color
+            screen.blit(dock_overlay, (0, SCREEN_HEIGHT - dock_height))
         
-        pygame.draw.rect(screen, WHITE, (health_x, health_y, health_width, health_height))
-        pygame.draw.rect(screen, GREEN if health_percent > 0.5 else YELLOW if health_percent > 0.25 else RED, 
-                         (health_x, health_y, health_width * health_percent, health_height))
-        health_text = self.font_small.render(f"Health: {int(self.game_controller.planet.health)}", True, WHITE)
-        screen.blit(health_text, (health_x + 10, health_y + health_height + 5))
+            button_width = 120
+            button_height = 40
+            button_y = SCREEN_HEIGHT - dock_height + 10
         
-        resource_text = self.font_small.render(f"Resources: {int(self.game_controller.planet.resources)}", True, WHITE)
-        screen.blit(resource_text, (health_x + 10, health_y + health_height + 30))
+            laser_button_x = SCREEN_WIDTH // 2 - button_width - 15
+            laser_selected = self.game_controller.selected_defense_type == LaserTurret
         
-        wave_text = self.font_small.render(f"Wave: {self.game_controller.wave_manager.current_wave}", True, WHITE)
-        screen.blit(wave_text, (health_x + 10, health_y + health_height + 55))
+            button_color = (60, 60, 200) if laser_selected else (30, 30, 80)
+            border_color = (100, 100, 255) if laser_selected else RED
+            border_width = 3 if laser_selected else 2
         
-        enemies_text = self.font_small.render(
-            f"Enemies: {len(self.game_controller.active_enemies)}/{self.game_controller.wave_manager.enemies_in_wave}", 
-            True, WHITE)
-        screen.blit(enemies_text, (health_x + 10, health_y + health_height + 80))
+            pygame.draw.rect(screen, button_color, (laser_button_x, button_y, button_width, button_height), 0, 6)
+            pygame.draw.rect(screen, border_color, (laser_button_x, button_y, button_width, button_height), border_width, 6)
         
-        score_text = self.font_small.render(f"Score: {self.game_controller.stats.player_score}", True, WHITE)
-        screen.blit(score_text, (health_x + 10, health_y + health_height + 105))
+            pygame.draw.circle(screen, RED, (laser_button_x + 20, button_y + button_height//2), 8)
+            pygame.draw.line(screen, (255, 100, 100), 
+                        (laser_button_x + 28, button_y + button_height//2 - 5),
+                        (laser_button_x + 40, button_y + button_height//2 + 5), 2)
         
-        selected_defense = self.game_controller.selected_defense_type(
-            [0, 0], 0)
-        defense_name = selected_defense.__class__.__name__
+            laser_text = self.font_small.render("Laser", True, WHITE)
+            screen.blit(laser_text, (laser_button_x + 45, button_y + 8))
+            laser_cost = self.font_small.render(f"${150}", True, (150, 150, 255))
+            screen.blit(laser_cost, (laser_button_x + 45, button_y + 23))
         
-        def_x = SCREEN_WIDTH - 220
-        def_y = 20
+            collector_button_x = SCREEN_WIDTH // 2 + 15
+            collector_selected = self.game_controller.selected_defense_type == ResourceCollector
         
-        pygame.draw.rect(screen, (*BLUE, 100), (def_x, def_y, 200, 130))
+            button_color = (60, 180, 60) if collector_selected else (30, 80, 30)
+            border_color = (100, 255, 100) if collector_selected else GREEN
+            border_width = 3 if collector_selected else 2
         
-        defense_title = self.font_medium.render(defense_name, True, WHITE)
-        screen.blit(defense_title, (def_x + 10, def_y + 10))
+            pygame.draw.rect(screen, button_color, (collector_button_x, button_y, button_width, button_height), 0, 6)
+            pygame.draw.rect(screen, border_color, (collector_button_x, button_y, button_width, button_height), border_width, 6)
         
-        cost_text = self.font_small.render(f"Cost: {selected_defense.cost}", True, WHITE)
-        screen.blit(cost_text, (def_x + 10, def_y + 50))
+            pygame.draw.circle(screen, GREEN, (collector_button_x + 20, button_y + button_height//2), 8)
+            pygame.draw.circle(screen, YELLOW, (collector_button_x + 20, button_y + button_height//2), 4)
         
-        if hasattr(selected_defense, 'damage') and selected_defense.damage > 0:
-            damage_text = self.font_small.render(f"Damage: {selected_defense.damage}", True, WHITE)
-            screen.blit(damage_text, (def_x + 10, def_y + 75))
-            
-            fire_text = self.font_small.render(f"Fire Rate: {selected_defense.fire_rate}/sec", True, WHITE)
-            screen.blit(fire_text, (def_x + 10, def_y + 100))
-        else:
-            collect_text = self.font_small.render(f"Collection: {selected_defense.collection_rate}/sec", True, WHITE)
-            screen.blit(collect_text, (def_x + 10, def_y + 75))
-            
-            capacity_text = self.font_small.render(f"Capacity: {selected_defense.storage_capacity}", True, WHITE)
-            screen.blit(capacity_text, (def_x + 10, def_y + 100))
-            
-        controls_x = def_x
-        controls_y = def_y + 150
-        
-        pygame.draw.rect(screen, (*BLUE, 100), (controls_x, controls_y, 200, 150))
-        
-        controls_title = self.font_small.render("Controls:", True, WHITE)
-        screen.blit(controls_title, (controls_x + 10, controls_y + 10))
-        
-        controls = [
-            "1 - Laser Turret",
-            "2 - Resource Collector",
-            "P - Toggle Placement Mode",
-            "LMB - Place Defense",
-            "Space - Start Wave",
-            "Esc - Quit"
-        ]
-        
-        for i, control in enumerate(controls):
-            control_text = self.font_small.render(control, True, WHITE)
-            screen.blit(control_text, (controls_x + 10, controls_y + 35 + i * 20))
-            
+            collector_text = self.font_small.render("Collector", True, WHITE)
+            screen.blit(collector_text, (collector_button_x + 45, button_y + 8))
+            collector_cost = self.font_small.render(f"${100}", True, (150, 255, 150))
+            screen.blit(collector_cost, (collector_button_x + 45, button_y + 23))
+    
         if self.game_controller.placement_mode:
             placement_text = self.font_medium.render("PLACEMENT MODE", True, GREEN)
-            screen.blit(placement_text, (SCREEN_WIDTH // 2 - 100, 20))
-            
+            text_width = placement_text.get_width()
+            pygame.draw.rect(screen, (0, 0, 0, 180), 
+                            (SCREEN_WIDTH // 2 - text_width // 2 - 15, 70, text_width + 30, 40), 0, 10)
+            pygame.draw.rect(screen, GREEN, 
+                            (SCREEN_WIDTH // 2 - text_width // 2 - 15, 70, text_width + 30, 40), 1, 10)
+            screen.blit(placement_text, (SCREEN_WIDTH // 2 - text_width // 2, 75))
+    
         if not self.game_controller.wave_in_progress and self.game_controller.wave_manager.current_wave > 0:
-            wave_complete_text = self.font_medium.render("Wave Complete! Press SPACE for next wave", True, WHITE)
-            screen.blit(wave_complete_text, (SCREEN_WIDTH // 2 - 200, SCREEN_HEIGHT - 50))
+            complete_text = self.font_medium.render("Wave Complete! Press SPACE for next wave", True, WHITE)
+            text_width = complete_text.get_width()
+            pygame.draw.rect(screen, (0, 0, 0, 200), 
+                            (SCREEN_WIDTH // 2 - text_width // 2 - 15, SCREEN_HEIGHT - 100, text_width + 30, 40), 0, 10)
+            pygame.draw.rect(screen, WHITE, 
+                            (SCREEN_WIDTH // 2 - text_width // 2 - 15, SCREEN_HEIGHT - 100, text_width + 30, 40), 1, 10)
+            screen.blit(complete_text, (SCREEN_WIDTH // 2 - text_width // 2, SCREEN_HEIGHT - 95))
             
     def show_game_over(self):
+        game_over_bg = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        for y in range(SCREEN_HEIGHT):
+            alpha = min(255, y * 0.6)
+            color = (5, 5, max(5, 30 - y * 0.1))
+            pygame.draw.line(game_over_bg, color, (0, y), (SCREEN_WIDTH, y))
+        screen.blit(game_over_bg, (0, 0))
+    
+        box_width, box_height = 400, 300
+        box_x = SCREEN_WIDTH // 2 - box_width // 2
+        box_y = SCREEN_HEIGHT // 2 - box_height // 2
+    
+        panel = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+        panel.fill((10, 10, 40, 220))
+        pygame.draw.rect(panel, (100, 100, 150), (0, 0, box_width, box_height), 2, 15)
+        screen.blit(panel, (box_x, box_y))
+    
         game_over_text = self.font_large.render("GAME OVER", True, RED)
+        screen.blit(game_over_text, (SCREEN_WIDTH // 2 - game_over_text.get_width() // 2, box_y + 30))
+    
         score_text = self.font_medium.render(
             f"Final Score: {self.game_controller.stats.player_score}", True, WHITE)
         waves_text = self.font_medium.render(
             f"Waves Completed: {self.game_controller.stats.waves_completed}", True, WHITE)
-        continue_text = self.font_small.render("Press ESC to quit or any key to continue", True, WHITE)
-        
-        screen.fill(BLACK)
-        screen.blit(game_over_text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 - 100))
-        screen.blit(score_text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 - 25))
-        screen.blit(waves_text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 25))
-        screen.blit(continue_text, (SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 + 100))
+    
+        screen.blit(score_text, (SCREEN_WIDTH // 2 - score_text.get_width() // 2, box_y + 100))
+        screen.blit(waves_text, (SCREEN_WIDTH // 2 - waves_text.get_width() // 2, box_y + 150))
+    
+        continue_box_width, continue_box_height = 300, 50
+        continue_box_x = SCREEN_WIDTH // 2 - continue_box_width // 2
+        continue_box_y = box_y + box_height - 70
+    
+        pygame.draw.rect(screen, (40, 40, 80), 
+                        (continue_box_x, continue_box_y, continue_box_width, continue_box_height), 0, 10)
+        pygame.draw.rect(screen, (100, 100, 150), 
+                        (continue_box_x, continue_box_y, continue_box_width, continue_box_height), 2, 10)
+    
+        continue_text = self.font_small.render("Press Any Key to Continue (ESC to Quit)", True, WHITE)
+        screen.blit(continue_text, 
+                (SCREEN_WIDTH // 2 - continue_text.get_width() // 2, continue_box_y + 15))
+    
         pygame.display.flip()
-        
+    
         waiting = True
         while waiting:
             for event in pygame.event.get():
@@ -816,13 +876,30 @@ class UIManager:
                         pygame.quit()
                         sys.exit()
                     waiting = False
-                    
-    def display_wave_info(self):
-        wave_text = self.font_large.render(f"Wave {self.game_controller.wave_manager.current_wave}", True, WHITE)
-        screen.fill(BLACK)
-        screen.blit(wave_text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 - 25))
-        pygame.display.flip()
-        pygame.time.wait(2000)
+
+    def show_controls_overlay(self):
+        overlay = pygame.Surface((220, 190), pygame.SRCALPHA)
+        overlay.fill((5, 5, 20, 230)) 
+        pygame.draw.rect(overlay, WHITE, (0, 0, 220, 190), 1, 8) 
+    
+        title = self.font_medium.render("Controls", True, WHITE)
+        overlay.blit(title, (10, 10))
+    
+        controls = [
+            "1 - Laser Turret",
+            "2 - Resource Collector",
+            "P - Toggle Placement",
+            "LMB - Place Defense",
+            "Space - Start Wave",
+            "H - Toggle Help",
+            "Esc - Quit"
+        ]
+    
+        for i, control in enumerate(controls):
+            text = self.font_small.render(control, True, WHITE)
+            overlay.blit(text, (15, 45 + i * 20))
+    
+        screen.blit(overlay, (SCREEN_WIDTH - 230, 70))
 
 class StatsDisplay:
     def __init__(self):
